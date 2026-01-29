@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/TubeOrchestrator.Core/TubeOrchestrator.Core.csproj" />
+    <Project Path="src/TubeOrchestrator.Data/TubeOrchestrator.Data.csproj" />
+    <Project Path="src/TubeOrchestrator.Server/TubeOrchestrator.Server.csproj" />
+    <Project Path="src/TubeOrchestrator.Worker/TubeOrchestrator.Worker.csproj" />
+  </Folder>
+</Solution>
