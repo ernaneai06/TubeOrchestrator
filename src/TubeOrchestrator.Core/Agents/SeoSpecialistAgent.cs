@@ -32,13 +32,16 @@ public class SeoSpecialistAgent : BaseAgent
         _logger.LogInformation("Generating SEO metadata for {Niche} content", niche);
 
         // Create prompts for each SEO element
+        var scriptExcerpt = script.Length > 500 ? script.Substring(0, 500) : script;
+        var scriptExcerptShort = script.Length > 300 ? script.Substring(0, 300) : script;
+
         var titlePrompt = $@"Based on this video script, create a compelling YouTube title that is:
 - Attention-grabbing but honest (no misleading clickbait)
 - 60 characters or less
 - Includes relevant keywords
 - Uses emojis strategically
 
-Script excerpt: {script.Substring(0, Math.Min(500, script.Length))}
+Script excerpt: {scriptExcerpt}
 
 Generate only the title, nothing else.";
 
@@ -48,21 +51,21 @@ Generate only the title, nothing else.";
 - Uses relevant keywords naturally
 - Includes relevant hashtags at the end
 
-Script excerpt: {script.Substring(0, Math.Min(500, script.Length))}
+Script excerpt: {scriptExcerpt}
 
 Generate only the description.";
 
         var tagsPrompt = $@"Based on this video about {niche}, generate 8-12 relevant YouTube tags.
 Tags should be comma-separated, include both broad and specific terms.
 
-Script excerpt: {script.Substring(0, Math.Min(300, script.Length))}
+Script excerpt: {scriptExcerptShort}
 
 Generate only the tags as a comma-separated list.";
 
         var thumbnailPrompt = $@"Based on this video script, suggest a compelling thumbnail concept.
 Describe the visual elements, text overlay, and overall composition in 2-3 sentences.
 
-Script excerpt: {script.Substring(0, Math.Min(300, script.Length))}
+Script excerpt: {scriptExcerptShort}
 
 Generate only the thumbnail description.";
 

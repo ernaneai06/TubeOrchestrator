@@ -82,29 +82,13 @@ public class VideoGenerationService
             _logger.LogInformation("Starting parallel execution of SEO, Visual, and Audio generation");
 
             // Execute SEO, Visual Prompts, and Audio in parallel
-            var parallelTasks = new[]
-            {
-                Task.Run(async () => 
-                {
-                    _logger.LogInformation("SEO Agent starting in parallel");
-                    await _seoAgent.ExecuteAsync(context);
-                    _logger.LogInformation("SEO Agent completed");
-                }),
-                Task.Run(async () => 
-                {
-                    _logger.LogInformation("Visual Prompter starting in parallel");
-                    await _visualAgent.ExecuteAsync(context);
-                    _logger.LogInformation("Visual Prompter completed");
-                }),
-                Task.Run(async () => 
-                {
-                    _logger.LogInformation("Audio generation starting in parallel");
-                    await GenerateAudioAsync(script);
-                    _logger.LogInformation("Audio generation completed");
-                })
-            };
-
-            await Task.WhenAll(parallelTasks);
+            // Note: These are already async methods, so they execute concurrently when awaited together
+            await Task.WhenAll(
+                _seoAgent.ExecuteAsync(context),
+                _visualAgent.ExecuteAsync(context),
+                GenerateAudioAsync(script)
+            );
+            
             _logger.LogInformation("All parallel tasks completed successfully");
 
             await UpdateJobProgress(job, "Rendering Video", 80);
@@ -154,15 +138,12 @@ public class VideoGenerationService
         job.Status = "Processing_ParallelActions";
         await _jobRepository.UpdateAsync(job);
 
-        // Execute parallel tasks
-        var parallelTasks = new[]
-        {
-            Task.Run(async () => await _seoAgent.ExecuteAsync(context)),
-            Task.Run(async () => await _visualAgent.ExecuteAsync(context)),
-            Task.Run(async () => await GenerateAudioAsync(approvedScript))
-        };
-
-        await Task.WhenAll(parallelTasks);
+        // Execute parallel tasks - already async methods execute concurrently
+        await Task.WhenAll(
+            _seoAgent.ExecuteAsync(context),
+            _visualAgent.ExecuteAsync(context),
+            GenerateAudioAsync(approvedScript)
+        );
 
         await UpdateJobProgress(job, "Rendering Video", 80);
 

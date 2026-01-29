@@ -79,12 +79,19 @@ try
     }
     else
     {
-        var apiKey = builder.Configuration["DeepSeek:ApiKey"] ?? "your-api-key-here";
-        builder.Services.AddHttpClient<IAIProvider, DeepSeekProvider>()
-            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(60));
-        builder.Services.AddScoped<IAIProvider>(sp =>
+        var apiKey = builder.Configuration["DeepSeek:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey) || apiKey == "your-api-key-here")
         {
-            var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient();
+            throw new InvalidOperationException("DeepSeek API key is required when UseMockAI=false. Please set DeepSeek:ApiKey in configuration.");
+        }
+        
+        builder.Services.AddHttpClient<DeepSeekProvider>()
+            .ConfigureHttpClient(client => client.Timeout = TimeSpan.FromSeconds(60));
+        
+        builder.Services.AddScoped<IAIProvider, DeepSeekProvider>(sp =>
+        {
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient(nameof(DeepSeekProvider));
             var logger = sp.GetRequiredService<ILogger<DeepSeekProvider>>();
             return new DeepSeekProvider(httpClient, logger, apiKey);
         });
