@@ -1,0 +1,56 @@
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build outputs
+**/bin/
+**/obj/
+**/out/
+**/dist/
+**/build/
+
+# Dependencies
+**/node_modules/
+**/packages/
+
+# Databases
+*.db
+*.db-shm
+*.db-wal
+tubeorchestrator.db*
+
+# Logs
+logs/
+*.log
+
+# Media files
+media/
+*.mp4
+*.mp3
+*.avi
+*.mov
+
+# Documentation (except what's needed)
+*.md
+!README.md
+!DOCKER.md
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*~
