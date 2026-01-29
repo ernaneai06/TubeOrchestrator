@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database (optional - can use SQLite mounted from volume)
+  # Uncomment if you want to use PostgreSQL instead of SQLite
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: tube-postgres
+  #   environment:
+  #     POSTGRES_DB: tubeorchestrator
+  #     POSTGRES_USER: tubeuser
+  #     POSTGRES_PASSWORD: tubepass123
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   ports:
+  #     - "5432:5432"
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U tubeuser"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+  # API Server (includes background worker)
+  tube-api:
+    build:
+      context: .
+      dockerfile: src/TubeOrchestrator.Server/Dockerfile
+    container_name: tube-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/tubeorchestrator.db
+      - UseMockAI=true
+      - DeepSeek__ApiKey=${DEEPSEEK_API_KEY:-your-api-key-here}
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-your-api-key-here}
+    ports:
+      - "5000:5000"
+    volumes:
+      - media-files:/app/media
+      - db-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Background Worker (separate instance for heavier processing)
+  tube-worker:
+    build:
+      context: .
+      dockerfile: src/TubeOrchestrator.Worker/Dockerfile
+    container_name: tube-worker
+    environment:
+      - DOTNET_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Data Source=/app/data/tubeorchestrator.db
+      - UseMockAI=true
+      - DeepSeek__ApiKey=${DEEPSEEK_API_KEY:-your-api-key-here}
+      - OpenAI__ApiKey=${OPENAI_API_KEY:-your-api-key-here}
+    volumes:
+      - media-files:/app/media
+      - db-data:/app/data
+    restart: unless-stopped
+    depends_on:
+      - tube-api
+
+  # React Frontend
+  tube-web:
+    build:
+      context: src/TubeOrchestrator.Web
+      dockerfile: Dockerfile
+    container_name: tube-web
+    ports:
+      - "3000:80"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    restart: unless-stopped
+    depends_on:
+      - tube-api
+
+volumes:
+  # Shared volume for video files and media assets
+  media-files:
+    driver: local
+  
+  # Persistent database storage
+  db-data:
+    driver: local
+
+  # Uncomment if using PostgreSQL
+  # postgres-data:
+  #   driver: local
+
+networks:
+  default:
+    name: tubeorchestrator-network

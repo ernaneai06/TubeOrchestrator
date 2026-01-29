@@ -33,11 +33,23 @@ bld/
 *.db
 *.db-shm
 *.db-wal
+tubeorchestrator.db*
+
+# Serilog logs
+logs/
+*.log
 
 # Node.js dependencies
 node_modules/
 dist/
 build/
+
+# Media files (generated videos)
+media/
+*.mp4
+*.mp3
+*.avi
+*.mov
 
 # Environment files
 .env

@@ -8,11 +8,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\TubeOrchestrator.Core\TubeOrchestrator.Core.csproj" />
     <ProjectReference Include="..\TubeOrchestrator.Data\TubeOrchestrator.Data.csproj" />
+    <ProjectReference Include="..\TubeOrchestrator.Infrastructure\TubeOrchestrator.Infrastructure.csproj" />
     <ProjectReference Include="..\TubeOrchestrator.Worker\TubeOrchestrator.Worker.csproj" />
   </ItemGroup>
 
