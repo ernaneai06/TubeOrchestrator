@@ -4,6 +4,7 @@ using TubeOrchestrator.Core.Services;
 using TubeOrchestrator.Data;
 using TubeOrchestrator.Data.Repositories;
 using TubeOrchestrator.Worker;
+using TubeOrchestrator.Worker.Services;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -15,6 +16,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 // Register repositories
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IChannelRepository, ChannelRepository>();
+
+// Register services
+builder.Services.AddScoped<VideoGenerationService>();
 
 // Register JobQueue as singleton
 builder.Services.AddSingleton<IJobQueue, JobQueue>();
