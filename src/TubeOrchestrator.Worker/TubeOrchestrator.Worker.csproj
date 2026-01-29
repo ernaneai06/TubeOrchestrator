@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-TubeOrchestrator.Worker-de3991d8-c653-4da8-a7a9-dfbb3abc0c3b</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TubeOrchestrator.Core\TubeOrchestrator.Core.csproj" />
+    <ProjectReference Include="..\TubeOrchestrator.Data\TubeOrchestrator.Data.csproj" />
+  </ItemGroup>
+</Project>
