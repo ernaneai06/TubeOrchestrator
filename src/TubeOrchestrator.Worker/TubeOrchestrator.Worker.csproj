@@ -14,5 +14,6 @@
   <ItemGroup>
     <ProjectReference Include="..\TubeOrchestrator.Core\TubeOrchestrator.Core.csproj" />
     <ProjectReference Include="..\TubeOrchestrator.Data\TubeOrchestrator.Data.csproj" />
+    <ProjectReference Include="..\TubeOrchestrator.Infrastructure\TubeOrchestrator.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

@@ -1,115 +1,224 @@
+using TubeOrchestrator.Core.Agents;
+using TubeOrchestrator.Core.Agents.Models;
 using TubeOrchestrator.Core.Entities;
+using TubeOrchestrator.Core.Interfaces;
 
 namespace TubeOrchestrator.Worker.Services;
 
+/// <summary>
+/// Orchestrates the video generation workflow using specialized AI agents
+/// with parallel processing for optimal performance
+/// </summary>
 public class VideoGenerationService
 {
     private readonly ILogger<VideoGenerationService> _logger;
+    private readonly ResearchAgent _researchAgent;
+    private readonly ScriptWriterAgent _scriptWriterAgent;
+    private readonly SeoSpecialistAgent _seoAgent;
+    private readonly VisualPrompterAgent _visualAgent;
+    private readonly IJobRepository _jobRepository;
 
-    public VideoGenerationService(ILogger<VideoGenerationService> logger)
+    public VideoGenerationService(
+        ILogger<VideoGenerationService> logger,
+        ResearchAgent researchAgent,
+        ScriptWriterAgent scriptWriterAgent,
+        SeoSpecialistAgent seoAgent,
+        VisualPrompterAgent visualAgent,
+        IJobRepository jobRepository)
     {
         _logger = logger;
+        _researchAgent = researchAgent;
+        _scriptWriterAgent = scriptWriterAgent;
+        _seoAgent = seoAgent;
+        _visualAgent = visualAgent;
+        _jobRepository = jobRepository;
     }
 
     public async Task<string> GenerateVideoAsync(Job job, Channel channel)
     {
-        _logger.LogInformation("Starting video generation for Job {JobId}", job.Id);
+        _logger.LogInformation("Starting agent-orchestrated video generation for Job {JobId}", job.Id);
+
+        var context = new JobContext
+        {
+            Job = job,
+            Channel = channel
+        };
 
         try
         {
-            // Step 1: Fetch Content
-            var content = await FetchContentAsync(channel);
-            _logger.LogInformation("Content fetched: {ContentPreview}", content.Substring(0, Math.Min(50, content.Length)));
+            // **STEP 1: Research (Sequential - we need the content base)**
+            await UpdateJobProgress(job, "Research Agent", 10);
+            await _researchAgent.ExecuteAsync(context);
+            _logger.LogInformation("Research complete");
 
-            // Step 2: Generate Script
-            var script = await GenerateScriptAsync(content, channel);
-            _logger.LogInformation("Script generated with {Length} characters", script.Length);
+            // **STEP 2: Script Writing (Sequential - we need the script for next steps)**
+            await UpdateJobProgress(job, "Script Writer", 30);
+            await _scriptWriterAgent.ExecuteAsync(context);
+            var script = context.Get<string>("Script") ?? throw new InvalidOperationException("Script not generated");
+            _logger.LogInformation("Script complete: {Length} chars", script.Length);
 
-            // Step 3: Render Video
-            var videoUrl = await RenderVideoAsync(script, channel);
-            _logger.LogInformation("Video rendered: {VideoUrl}", videoUrl);
+            // Save script to job for potential approval workflow
+            job.Script = script;
+            await _jobRepository.UpdateAsync(job);
 
+            // Check if approval is required
+            if (channel.RequireApproval)
+            {
+                _logger.LogInformation("Job {JobId} requires approval, pausing workflow", job.Id);
+                job.Status = "WaitingForApproval";
+                job.CurrentAgent = "Awaiting Human Approval";
+                job.StepProgress = 40;
+                await _jobRepository.UpdateAsync(job);
+                
+                // Return empty string to indicate workflow is paused
+                return string.Empty;
+            }
+
+            // **STEP 3: PARALLEL ORCHESTRATION (The Magic!)**
+            await UpdateJobProgress(job, "Parallel Processing", 50);
+            job.Status = "Processing_ParallelActions";
+            await _jobRepository.UpdateAsync(job);
+
+            _logger.LogInformation("Starting parallel execution of SEO, Visual, and Audio generation");
+
+            // Execute SEO, Visual Prompts, and Audio in parallel
+            var parallelTasks = new[]
+            {
+                Task.Run(async () => 
+                {
+                    _logger.LogInformation("SEO Agent starting in parallel");
+                    await _seoAgent.ExecuteAsync(context);
+                    _logger.LogInformation("SEO Agent completed");
+                }),
+                Task.Run(async () => 
+                {
+                    _logger.LogInformation("Visual Prompter starting in parallel");
+                    await _visualAgent.ExecuteAsync(context);
+                    _logger.LogInformation("Visual Prompter completed");
+                }),
+                Task.Run(async () => 
+                {
+                    _logger.LogInformation("Audio generation starting in parallel");
+                    await GenerateAudioAsync(script);
+                    _logger.LogInformation("Audio generation completed");
+                })
+            };
+
+            await Task.WhenAll(parallelTasks);
+            _logger.LogInformation("All parallel tasks completed successfully");
+
+            await UpdateJobProgress(job, "Rendering Video", 80);
+
+            // **STEP 4: Video Assembly (Sequential - needs outputs from parallel tasks)**
+            var seoMetadata = context.Get<SeoMetadata>("SeoMetadata");
+            var visualPrompts = context.Get<List<VisualPrompt>>("VisualPrompts");
+            
+            var videoUrl = await AssembleAndUploadVideoAsync(script, seoMetadata, visualPrompts, channel);
+
+            await UpdateJobProgress(job, "Completed", 100);
+            
+            _logger.LogInformation("Video generation complete: {VideoUrl}", videoUrl);
             return videoUrl;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error generating video for Job {JobId}", job.Id);
+            _logger.LogError(ex, "Error in agent orchestration for Job {JobId}", job.Id);
+            job.CurrentAgent = "Failed";
+            job.StepProgress = 0;
+            await _jobRepository.UpdateAsync(job);
             throw;
         }
     }
 
-    private async Task<string> FetchContentAsync(Channel channel)
+    /// <summary>
+    /// Continues job execution after approval (called from approval endpoint)
+    /// </summary>
+    public async Task<string> ContinueAfterApprovalAsync(Job job, Channel channel, string approvedScript)
     {
-        _logger.LogInformation("Fetching content for channel {ChannelName} (Niche: {Niche})", 
-            channel.Name, channel.Niche?.Name ?? "Unknown");
+        _logger.LogInformation("Continuing Job {JobId} after approval", job.Id);
 
-        // Simulate API call to fetch news/content based on niche
-        await Task.Delay(1000);
+        var context = new JobContext
+        {
+            Job = job,
+            Channel = channel
+        };
 
-        // In real implementation, this would:
-        // 1. Call a news API based on the channel's niche
-        // 2. Use the channel's credentials from CredentialsJson
-        // 3. Return relevant content for video generation
+        // Set the approved script in context
+        context.Set("Script", approvedScript);
+        job.Script = approvedScript;
+        job.Status = "Processing";
+        await _jobRepository.UpdateAsync(job);
+
+        // Continue from parallel orchestration step
+        await UpdateJobProgress(job, "Parallel Processing", 50);
+        job.Status = "Processing_ParallelActions";
+        await _jobRepository.UpdateAsync(job);
+
+        // Execute parallel tasks
+        var parallelTasks = new[]
+        {
+            Task.Run(async () => await _seoAgent.ExecuteAsync(context)),
+            Task.Run(async () => await _visualAgent.ExecuteAsync(context)),
+            Task.Run(async () => await GenerateAudioAsync(approvedScript))
+        };
+
+        await Task.WhenAll(parallelTasks);
+
+        await UpdateJobProgress(job, "Rendering Video", 80);
+
+        var seoMetadata = context.Get<SeoMetadata>("SeoMetadata");
+        var visualPrompts = context.Get<List<VisualPrompt>>("VisualPrompts");
         
-        var nicheName = channel.Niche?.Name ?? "General";
-        return $"Sample content for {nicheName}: Breaking news about the latest developments in this field. " +
-               $"This is placeholder content that would be replaced with real data from APIs.";
+        var videoUrl = await AssembleAndUploadVideoAsync(approvedScript, seoMetadata, visualPrompts, channel);
+
+        await UpdateJobProgress(job, "Completed", 100);
+        
+        return videoUrl;
     }
 
-    private async Task<string> GenerateScriptAsync(string content, Channel channel)
+    private async Task UpdateJobProgress(Job job, string currentAgent, int progress)
     {
-        _logger.LogInformation("Generating script using templates from niche {Niche}", 
-            channel.Niche?.Name ?? "Unknown");
-
-        // Simulate AI script generation
-        await Task.Delay(2000);
-
-        // In real implementation, this would:
-        // 1. Get the PromptTemplate for "Script" type from channel.Niche.PromptTemplates
-        // 2. Replace variables like {{NEWS_DATA}} with actual content
-        // 3. Call an LLM API (OpenAI, Claude, etc.) with the processed prompt
-        // 4. Return the generated script
-
-        var scriptTemplate = channel.Niche?.PromptTemplates
-            ?.FirstOrDefault(pt => pt.Type == "Script");
-
-        string prompt;
-        if (scriptTemplate != null)
-        {
-            prompt = scriptTemplate.TemplateText.Replace("{{NEWS_DATA}}", content);
-            prompt = prompt.Replace("{{TOPIC}}", channel.Niche?.Name ?? "");
-        }
-        else
-        {
-            prompt = $"Create a video script about: {content}";
-        }
-
-        _logger.LogInformation("Using prompt template: {Prompt}", prompt.Substring(0, Math.Min(100, prompt.Length)));
-
-        // Simulated AI-generated script
-        return $"[INTRO]\nWelcome to {channel.Name}!\n\n" +
-               $"[MAIN CONTENT]\n{content}\n\n" +
-               $"[OUTRO]\nThank you for watching! Don't forget to subscribe.";
+        job.CurrentAgent = currentAgent;
+        job.StepProgress = progress;
+        await _jobRepository.UpdateAsync(job);
+        _logger.LogInformation("Job {JobId} progress: {Agent} - {Progress}%", job.Id, currentAgent, progress);
     }
 
-    private async Task<string> RenderVideoAsync(string script, Channel channel)
+    private async Task GenerateAudioAsync(string script)
     {
-        _logger.LogInformation("Rendering video for channel {ChannelName}", channel.Name);
+        // Simulate TTS audio generation
+        _logger.LogInformation("Generating audio from script ({Length} chars)", script.Length);
+        await Task.Delay(2000); // Simulate IO-bound audio generation
+        
+        // In real implementation:
+        // - Call a TTS service (ElevenLabs, Azure TTS, Google TTS, etc.)
+        // - Save audio file to shared volume
+        // - Return audio file path
+    }
 
-        // Simulate video rendering
+    private async Task<string> AssembleAndUploadVideoAsync(
+        string script, 
+        SeoMetadata? seoMetadata, 
+        List<VisualPrompt>? visualPrompts,
+        Channel channel)
+    {
+        _logger.LogInformation("Assembling video with audio, visuals, and metadata");
+        
+        // Simulate video assembly and upload
         await Task.Delay(2000);
 
-        // In real implementation, this would:
-        // 1. Use a video generation library or API (e.g., FFmpeg, MoviePy, or cloud services)
-        // 2. Generate title and description using PromptTemplates
-        // 3. Add voice-over using TTS services
-        // 4. Add background music, images, or stock footage
-        // 5. Upload the video to the platform (YouTube/TikTok) using credentials
-        // 6. Return the actual video URL
+        // In real implementation:
+        // 1. Use FFmpeg to combine:
+        //    - Audio file (from GenerateAudioAsync)
+        //    - Images (generated from visualPrompts or stock images)
+        //    - Transitions, effects, branding
+        // 2. Apply SEO metadata (title, description, tags)
+        // 3. Upload to YouTube/TikTok using channel credentials
+        // 4. Return actual video URL
 
         var videoId = Guid.NewGuid().ToString("N").Substring(0, 11);
         var platform = channel.Platform.ToLower();
-        
+
         if (platform == "youtube")
         {
             return $"https://youtube.com/watch?v={videoId}";
@@ -118,7 +227,7 @@ public class VideoGenerationService
         {
             return $"https://tiktok.com/@{channel.Name}/video/{videoId}";
         }
-        
+
         return $"https://{platform}.com/videos/{videoId}";
     }
 }

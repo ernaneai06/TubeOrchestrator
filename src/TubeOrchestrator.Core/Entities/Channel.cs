@@ -7,6 +7,7 @@ public class Channel
     public string Platform { get; set; } = "YouTube"; // YouTube/TikTok
     public string? CredentialsJson { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool RequireApproval { get; set; } = false; // Human-in-the-loop approval
     public string? ScheduleCron { get; set; }
     public int? NicheId { get; set; }
     public Niche? Niche { get; set; }
