@@ -1,13 +1,21 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using TubeOrchestrator.Core.Interfaces;
 using TubeOrchestrator.Core.Services;
 using TubeOrchestrator.Data;
 using TubeOrchestrator.Data.Repositories;
+using TubeOrchestrator.Worker;
+using TubeOrchestrator.Worker.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull;
+    });
 builder.Services.AddOpenApi();
 
 // Configure CORS for React frontend
@@ -30,8 +38,14 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 builder.Services.AddScoped<IJobRepository, JobRepository>();
 builder.Services.AddScoped<IChannelRepository, ChannelRepository>();
 
-// Register JobQueue as singleton (shared with Worker)
+// Register services
+builder.Services.AddScoped<VideoGenerationService>();
+
+// Register JobQueue as singleton (shared between API and Worker)
 builder.Services.AddSingleton<IJobQueue, JobQueue>();
+
+// Register the Worker as a hosted service
+builder.Services.AddHostedService<VideoProcessingWorker>();
 
 var app = builder.Build();
 

@@ -13,6 +13,7 @@
   <ItemGroup>
     <ProjectReference Include="..\TubeOrchestrator.Core\TubeOrchestrator.Core.csproj" />
     <ProjectReference Include="..\TubeOrchestrator.Data\TubeOrchestrator.Data.csproj" />
+    <ProjectReference Include="..\TubeOrchestrator.Worker\TubeOrchestrator.Worker.csproj" />
   </ItemGroup>
 
 </Project>
